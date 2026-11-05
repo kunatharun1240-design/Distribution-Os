@@ -9,6 +9,9 @@ from numbers import Integral
 from PIL import Image, ImageOps, UnidentifiedImageError
 import streamlit as st
 
+from distributionos.recognition import make_review_item
+from distributionos.screens import catalog_screen, dataset_screen, review_screen
+
 PRODUCTS = ("Coca-Cola", "Sprite", "Fanta")
 
 
@@ -83,7 +86,13 @@ def main():
     st.set_page_config(page_title="DistributionOS | AI Case Counter", page_icon="📦", layout="wide")
     st.title("DistributionOS")
     st.caption("AI Case Counter · v0.1 · Local prototype")
+    page = st.sidebar.radio("Screen", ["Inventory & image upload", "Product catalog", "Manual verification", "Dataset workflow"])
+    if page != "Inventory & image upload":
+        {"Product catalog": catalog_screen, "Manual verification": review_screen,
+         "Dataset workflow": dataset_screen}[page]()
+        return
     st.info("Manual test inventory and image preview. AI recognition and case counting are not implemented yet.")
+    st.caption("The three categories below are legacy manual test rows, not recognized SKUs. Manage real variants on the Product catalog screen.")
     st.subheader("Product dashboard")
     for column, product in zip(st.columns(3), PRODUCTS):
         with column:
@@ -110,6 +119,9 @@ def main():
             st.image(preview, caption=uploaded.name, width="stretch")
             image_name = uploaded.name
             st.success("Image preview ready. No detection has been run.")
+            if st.button("Send photo for manual verification"):
+                st.session_state.setdefault("review_queue", []).append(make_review_item(preview, uploaded.name))
+                st.success("Photo added to the temporary queue. Open Manual verification in the sidebar.")
         except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
             st.error("This image could not be opened. Use a valid JPG, JPEG or PNG under 20 MB with reasonable dimensions.")
 

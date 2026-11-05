@@ -1,0 +1,2 @@
+{"image_id":"scene-001","image":"scene-001.jpg","width":1920,"height":1080,"capture_group":"warehouse-session-001","split":"train","reviewed":true,"cases":[{"bbox_xyxy":[100,100,500,600],"sku":"REPLACE-WITH-ACTUAL-CATALOG-SKU","ocr_text":"Transcribe visible text only","barcodes":[],"occluded":false}]}
+{"image_id":"scene-002","image":"scene-002.jpg","width":1920,"height":1080,"capture_group":"warehouse-session-002","split":"test","reviewed":true,"cases":[{"bbox_xyxy":[200,200,600,700],"sku":null,"ocr_text":"","barcodes":[],"occluded":true}]}

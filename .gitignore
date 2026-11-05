@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 .streamlit/secrets.toml
+.venv312/
+local_data/
+datasets/
