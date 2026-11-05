@@ -3,11 +3,62 @@
 import csv
 import io
 import warnings
+from datetime import datetime, timezone
+from numbers import Integral
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 import streamlit as st
 
 PRODUCTS = ("Coca-Cola", "Sprite", "Fanta")
+
+
+def manual_rows():
+    return [{"Product name": product, "Quantity": 0, "Unit": "cases", "Last updated": ""}
+            for product in PRODUCTS]
+
+
+def save_manual_inventory(rows):
+    if len(rows) != len(PRODUCTS):
+        raise ValueError("Keep the three default product rows.")
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    saved = []
+    for product, row in zip(PRODUCTS, rows):
+        quantity = row.get("Quantity")
+        if isinstance(quantity, bool) or not isinstance(quantity, Integral) or quantity < 0:
+            raise ValueError("Enter a whole number of cases, zero or greater, for every product.")
+        saved.append({"Product name": product, "Quantity": int(quantity),
+                      "Unit": "cases", "Last updated": timestamp})
+    return saved
+
+
+def manual_inventory_section():
+    st.subheader("Manual test inventory")
+    st.caption("Temporary session data only. Save stores your edits for this session; it does not change real inventory. Refreshing or closing the session may clear it. Times are UTC.")
+    if "manual_inventory" not in st.session_state:
+        st.session_state.manual_inventory = manual_rows()
+        st.session_state.manual_inventory_saved = False
+    with st.form("manual_inventory_form"):
+        edited = st.data_editor(
+            st.session_state.manual_inventory, key="manual_inventory_editor",
+            hide_index=True, num_rows="fixed", width="stretch",
+            disabled=["Product name", "Unit", "Last updated"],
+            column_config={"Quantity": st.column_config.NumberColumn(
+                "Quantity", min_value=0, step=1, format="%d", required=True)},
+        )
+        if st.form_submit_button("Save Inventory"):
+            try:
+                st.session_state.manual_inventory = save_manual_inventory(edited)
+                st.session_state.manual_inventory_saved = True
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+    if st.session_state.manual_inventory_saved:
+        st.success("Inventory saved in this temporary session. Export CSV uses the last saved values.")
+    else:
+        st.caption("Starting quantities are zero for testing. Enter your quantities and click Save Inventory before exporting.")
+    st.download_button("Export CSV", data=inventory_csv(st.session_state.manual_inventory),
+                       file_name="distributionos_manual_inventory.csv", mime="text/csv",
+                       disabled=not st.session_state.manual_inventory_saved)
 
 
 def inventory_rows(image_name=""):
@@ -32,12 +83,14 @@ def main():
     st.set_page_config(page_title="DistributionOS | AI Case Counter", page_icon="📦", layout="wide")
     st.title("DistributionOS")
     st.caption("AI Case Counter · v0.1 · Local prototype")
-    st.info("Image preview and CSV template only. AI recognition and case counting are not implemented yet.")
+    st.info("Manual test inventory and image preview. AI recognition and case counting are not implemented yet.")
     st.subheader("Product dashboard")
     for column, product in zip(st.columns(3), PRODUCTS):
         with column:
             st.metric(product, "—")
             st.caption("Not analyzed · case count unavailable")
+
+    manual_inventory_section()
 
     st.subheader("Upload an image")
     st.caption("JPG, JPEG or PNG · up to 20 MB. Images stay in this local app's memory; they are not saved or sent to an AI service.")

@@ -6,7 +6,7 @@ from unittest.mock import patch
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
-from app import inventory_csv, inventory_rows
+from app import inventory_csv, inventory_rows, manual_rows, save_manual_inventory
 
 
 class Upload(io.BytesIO):
@@ -17,6 +17,41 @@ class Upload(io.BytesIO):
 
 
 class AppTests(unittest.TestCase):
+    def test_manual_save_and_export(self):
+        app = AppTest.from_file("app.py").run()
+        self.assertFalse(app.exception)
+        app.session_state["manual_inventory_editor"] = {
+            "edited_rows": {0: {"Quantity": 25}, 1: {"Quantity": 15}, 2: {"Quantity": 10}},
+            "added_rows": [], "deleted_rows": [],
+        }
+        with patch("streamlit.download_button") as download:
+            app.button[0].click().run()
+        self.assertFalse(app.exception)
+        saved = app.session_state["manual_inventory"]
+        self.assertEqual([r["Quantity"] for r in saved], [25, 15, 10])
+        self.assertTrue(all(r["Last updated"] and r["Unit"] == "cases" for r in saved))
+        calls = [c for c in download.call_args_list if c.args[0] == "Export CSV"]
+        self.assertTrue(calls)
+        self.assertFalse(calls[-1].kwargs["disabled"])
+        rows = list(csv.DictReader(io.StringIO(calls[-1].kwargs["data"].decode())))
+        self.assertEqual([r["Quantity"] for r in rows], ["25", "15", "10"])
+        self.assertEqual([r["Product name"] for r in rows], ["Coca-Cola", "Sprite", "Fanta"])
+        app.run()
+        self.assertEqual([r["Quantity"] for r in app.session_state["manual_inventory"]], [25, 15, 10])
+        app.session_state["manual_inventory_editor"] = {
+            "edited_rows": {0: {"Quantity": 30}}, "added_rows": [], "deleted_rows": []}
+        app.button[0].click().run()
+        self.assertEqual([r["Quantity"] for r in app.session_state["manual_inventory"]], [30, 15, 10])
+        fresh = AppTest.from_file("app.py").run()
+        self.assertEqual([r["Quantity"] for r in fresh.session_state["manual_inventory"]], [0, 0, 0])
+
+    def test_manual_validation(self):
+        for invalid in (-1, 1.5, None, True):
+            rows = manual_rows()
+            rows[0]["Quantity"] = invalid
+            with self.assertRaises(ValueError):
+                save_manual_inventory(rows)
+
     def test_csv_template(self):
         rows = list(csv.DictReader(io.StringIO(inventory_csv(inventory_rows("photo.png")).decode())))
         self.assertEqual([r["product"] for r in rows], ["Coca-Cola", "Sprite", "Fanta"])
