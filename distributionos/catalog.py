@@ -1,4 +1,4 @@
-"""Local catalog metadata only; this database never stores inventory counts."""
+"""Catalog metadata; ledger tables in the same local database are managed separately."""
 
 from contextlib import contextmanager
 from datetime import datetime, timezone

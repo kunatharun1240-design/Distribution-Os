@@ -1,5 +1,7 @@
 import csv
 import io
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -17,8 +19,19 @@ class Upload(io.BytesIO):
 
 
 class AppTests(unittest.TestCase):
-    def test_manual_save_and_export(self):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        environment = patch.dict(os.environ, {"DISTRIBUTIONOS_DATA_DIR": temporary.name})
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def legacy_app(self):
         app = AppTest.from_file("app.py").run()
+        return app.sidebar.radio[0].set_value("Inventory & image upload").run()
+
+    def test_manual_save_and_export(self):
+        app = self.legacy_app()
         self.assertFalse(app.exception)
         app.session_state["manual_inventory_editor"] = {
             "edited_rows": {0: {"Quantity": 25}, 1: {"Quantity": 15}, 2: {"Quantity": 10}},
@@ -42,7 +55,7 @@ class AppTests(unittest.TestCase):
             "edited_rows": {0: {"Quantity": 30}}, "added_rows": [], "deleted_rows": []}
         app.button[0].click().run()
         self.assertEqual([r["Quantity"] for r in app.session_state["manual_inventory"]], [30, 15, 10])
-        fresh = AppTest.from_file("app.py").run()
+        fresh = self.legacy_app()
         self.assertEqual([r["Quantity"] for r in fresh.session_state["manual_inventory"]], [0, 0, 0])
 
     def test_manual_validation(self):
@@ -62,7 +75,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(rows[0]["image_name"], "'=1+1.png")
 
     def test_dashboard(self):
-        app = AppTest.from_file("app.py").run()
+        app = self.legacy_app()
         self.assertFalse(app.exception)
         self.assertEqual([m.label for m in app.metric], ["Coca-Cola", "Sprite", "Fanta"])
         self.assertEqual(len(app.table), 1)
@@ -73,7 +86,7 @@ class AppTests(unittest.TestCase):
                 data = io.BytesIO()
                 Image.new("RGB", (16, 16), "red").save(data, format=fmt)
                 with patch("streamlit.file_uploader", return_value=Upload(data.getvalue(), name)):
-                    app = AppTest.from_file("app.py").run()
+                    app = self.legacy_app()
                 self.assertFalse(app.exception)
                 self.assertEqual(len(app.success), 1)
                 self.assertEqual(len(app.get("imgs")), 1)
@@ -81,7 +94,7 @@ class AppTests(unittest.TestCase):
 
     def test_invalid_upload(self):
         with patch("streamlit.file_uploader", return_value=Upload(b"invalid", "broken.png")):
-            app = AppTest.from_file("app.py").run()
+            app = self.legacy_app()
         self.assertFalse(app.exception)
         self.assertEqual(len(app.error), 1)
         self.assertEqual(len(app.success), 0)

@@ -1,7 +1,5 @@
 """Local image preview and inventory export scaffold; no AI detection yet."""
 
-import csv
-import io
 import warnings
 from datetime import datetime, timezone
 from numbers import Integral
@@ -11,6 +9,8 @@ import streamlit as st
 
 from distributionos.recognition import make_review_item
 from distributionos.screens import catalog_screen, dataset_screen, review_screen
+from distributionos.inventory_screen import inventory_screen
+from distributionos.exports import csv_bytes
 
 PRODUCTS = ("Coca-Cola", "Sprite", "Fanta")
 
@@ -73,22 +73,16 @@ def inventory_rows(image_name=""):
 
 
 def inventory_csv(rows):
-    output = io.StringIO(newline="")
-    writer = csv.DictWriter(output, fieldnames=list(rows[0]))
-    writer.writeheader()
-    # Image filenames are untrusted spreadsheet input.
-    writer.writerows({key: "'" + value if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else value
-                      for key, value in row.items()} for row in rows)
-    return output.getvalue().encode("utf-8")
+    return csv_bytes(rows)
 
 
 def main():
     st.set_page_config(page_title="DistributionOS | AI Case Counter", page_icon="📦", layout="wide")
     st.title("DistributionOS")
-    st.caption("AI Case Counter · v0.1 · Local prototype")
-    page = st.sidebar.radio("Screen", ["Inventory & image upload", "Product catalog", "Manual verification", "Dataset workflow"])
+    st.caption("Permanent inventory ledger · Local storage · AI recognition not implemented")
+    page = st.sidebar.radio("Screen", ["Inventory dashboard", "Product catalog", "Inventory & image upload", "Manual verification", "Dataset workflow"])
     if page != "Inventory & image upload":
-        {"Product catalog": catalog_screen, "Manual verification": review_screen,
+        {"Inventory dashboard": inventory_screen, "Product catalog": catalog_screen, "Manual verification": review_screen,
          "Dataset workflow": dataset_screen}[page]()
         return
     st.info("Manual test inventory and image preview. AI recognition and case counting are not implemented yet.")

@@ -12,7 +12,7 @@ from distributionos.catalog import list_photos, list_products, save_product
 
 def catalog_screen():
     st.header("Product catalog")
-    st.caption("SKU means one exact sellable variant: product + size + case pack + packaging. Catalog changes never update inventory.")
+    st.caption("SKU means one exact sellable variant: product + size + case pack + packaging. Add products here, then set their opening stock on Inventory dashboard. Editing details never creates a stock movement.")
     st.info("Catalog details and reference photographs are saved on this machine in local_data/catalog.sqlite3. No model is trained here.")
     try:
         products = list_products()

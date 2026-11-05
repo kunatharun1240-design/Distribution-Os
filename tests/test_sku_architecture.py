@@ -12,6 +12,7 @@ from streamlit.testing.v1 import AppTest
 from distributionos.catalog import list_photos, list_products, save_product
 from distributionos.dataset import export_dataset, validate_manifest
 from distributionos.recognition import Detection, Evidence, FusionPolicy, fuse, run_pipeline
+from distributionos.ledger import current_inventory
 
 
 def product(sku="COLA-500-24", **changes):
@@ -46,6 +47,7 @@ class LocalCatalogTests(unittest.TestCase):
         save_product(product("SKU-000", barcode="0000000000000", active=False), path=self.path)
         self.assertEqual(len(list_products(self.path, active_only=True)), 119)
         self.assertEqual(len(list_photos("SKU-000", self.path)), 1)
+        self.assertEqual(len(current_inventory(self.path)), 120)
 
     def test_duplicates_and_bad_photos_do_not_corrupt_catalog(self):
         save_product(product(), path=self.path, create=True)
@@ -91,6 +93,7 @@ class LocalCatalogTests(unittest.TestCase):
         with patch.dict(os.environ, {"DISTRIBUTIONOS_DATA_DIR": self.temp.name}):
             with patch("streamlit.file_uploader", return_value=Upload(image_bytes())):
                 app = AppTest.from_file("app.py").run()
+                app.sidebar.radio[0].set_value("Inventory & image upload").run()
                 next(b for b in app.button if b.label == "Send photo for manual verification").click().run()
             self.assertFalse(app.exception)
             app.sidebar.radio[0].set_value("Manual verification").run()
